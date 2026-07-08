@@ -4,7 +4,8 @@ MorningBrief is a Chinese-first customizable morning dashboard for Android, buil
 
 ## Requirements
 
-- Flutter SDK 3.22 or newer
+- Flutter SDK 3.44 or newer
+- Dart SDK 3.12 or newer
 - Android Studio or Android SDK command-line tools
 - Android emulator or physical Android device
 
