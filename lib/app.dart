@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
+import 'shared/screens/home_screen.dart';
+import 'shared/screens/settings_screen.dart';
 
 class MorningBriefApp extends StatelessWidget {
   const MorningBriefApp({super.key});
@@ -13,48 +15,9 @@ class MorningBriefApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       routes: {
-        '/': (_) => const _TemporaryHomeScreen(),
-        '/settings': (_) => const _TemporarySettingsScreen(),
+        '/': (_) => const HomeScreen(),
+        '/settings': (_) => const SettingsScreen(),
       },
-    );
-  }
-}
-
-class _TemporaryHomeScreen extends StatelessWidget {
-  const _TemporaryHomeScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('MorningBrief'),
-        actions: [
-          IconButton(
-            tooltip: '设置',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).pushNamed('/settings'),
-          ),
-        ],
-      ),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('早安！'),
-      ),
-    );
-  }
-}
-
-class _TemporarySettingsScreen extends StatelessWidget {
-  const _TemporarySettingsScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('配置将在后续任务中添加'),
-      ),
     );
   }
 }
