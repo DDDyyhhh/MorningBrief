@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiClientException implements Exception {
@@ -22,9 +23,13 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getJson(Uri uri) async {
     final text = await getText(uri);
-    final decoded = jsonDecode(text);
-    if (decoded is Map<String, dynamic>) return decoded;
-    throw ApiClientException('返回数据不是 JSON 对象');
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map<String, dynamic>) return decoded;
+      throw ApiClientException('返回数据不是 JSON 对象');
+    } on FormatException {
+      throw ApiClientException('返回数据不是有效 JSON');
+    }
   }
 
   Future<String> getText(Uri uri) async {
@@ -36,6 +41,10 @@ class ApiClient {
       return response.body;
     } on TimeoutException {
       throw ApiClientException('请求超时');
+    } on http.ClientException catch (error) {
+      throw ApiClientException('请求失败: ${error.message}');
+    } on SocketException catch (error) {
+      throw ApiClientException('网络连接失败: ${error.message}');
     }
   }
 }
