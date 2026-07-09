@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:morningbrief/core/storage.dart';
+import 'package:morningbrief/modules/calendar/calendar_provider.dart';
+import 'package:morningbrief/modules/calendar/calendar_service.dart';
 import 'package:morningbrief/shared/module_config_provider.dart';
 import 'package:morningbrief/shared/screens/home_screen.dart';
 
@@ -16,10 +18,15 @@ void main() {
       final storage = await AppStorage.create();
       final provider = ModuleConfigProvider(storage);
       await provider.load();
+      final calendarProvider = CalendarProvider(MemoryCalendarService());
+      await calendarProvider.loadToday();
 
       await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: provider,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: provider),
+            ChangeNotifierProvider.value(value: calendarProvider),
+          ],
           child: const MaterialApp(home: HomeScreen()),
         ),
       );
