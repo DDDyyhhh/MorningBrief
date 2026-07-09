@@ -12,6 +12,11 @@ class CalendarProvider extends ChangeNotifier {
 
   ModuleState<List<CalendarEvent>> get state => _state;
 
+  void setStorageError() {
+    _state = ModuleState.error(const AppError(type: AppErrorType.storage, message: '日程读取失败'));
+    notifyListeners();
+  }
+
   Future<void> loadToday() async {
     _state = ModuleState.loading();
     notifyListeners();
@@ -25,17 +30,32 @@ class CalendarProvider extends ChangeNotifier {
   }
 
   Future<void> addEvent(String title, DateTime startsAt) async {
-    await _service.createEvent(title, startsAt);
-    await loadToday();
+    try {
+      await _service.createEvent(title, startsAt);
+      await loadToday();
+    } catch (_) {
+      _state = ModuleState.error(const AppError(type: AppErrorType.storage, message: '日程保存失败'));
+      notifyListeners();
+    }
   }
 
   Future<void> toggleCompleted(int id, bool completed) async {
-    await _service.toggleCompleted(id, completed);
-    await loadToday();
+    try {
+      await _service.toggleCompleted(id, completed);
+      await loadToday();
+    } catch (_) {
+      _state = ModuleState.error(const AppError(type: AppErrorType.storage, message: '日程保存失败'));
+      notifyListeners();
+    }
   }
 
   Future<void> deleteEvent(int id) async {
-    await _service.deleteEvent(id);
-    await loadToday();
+    try {
+      await _service.deleteEvent(id);
+      await loadToday();
+    } catch (_) {
+      _state = ModuleState.error(const AppError(type: AppErrorType.storage, message: '日程保存失败'));
+      notifyListeners();
+    }
   }
 }

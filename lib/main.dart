@@ -9,14 +9,16 @@ import 'modules/calendar/calendar_service.dart';
 import 'shared/module_config_provider.dart';
 
 Future<void> main() async {
+  await startApp();
+}
+
+Future<void> startApp({Future<AppDatabase> Function()? openCalendarDatabase}) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
   final storage = await AppStorage.create();
-  final database = await AppDatabase.open();
   final moduleConfigProvider = ModuleConfigProvider(storage);
   await moduleConfigProvider.load();
-  final calendarProvider = CalendarProvider(SqliteCalendarService(database.database));
-  await calendarProvider.loadToday();
+  final calendarProvider = await _createCalendarProvider(openCalendarDatabase ?? AppDatabase.open);
 
   runApp(
     MultiProvider(
@@ -27,4 +29,18 @@ Future<void> main() async {
       child: const MorningBriefApp(),
     ),
   );
+}
+
+Future<CalendarProvider> _createCalendarProvider(Future<AppDatabase> Function() openDatabase) async {
+  try {
+    final database = await openDatabase();
+    final provider = CalendarProvider(SqliteCalendarService(database.database));
+    await provider.loadToday();
+    return provider;
+  } catch (_) {
+    final provider = CalendarProvider(MemoryCalendarService());
+    await provider.loadToday();
+    provider.setStorageError();
+    return provider;
+  }
 }
