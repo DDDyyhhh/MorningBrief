@@ -108,7 +108,7 @@ class _StockQuoteRow extends StatelessWidget {
                               const TextStyle())
                           .copyWith(
                             color: changeColor,
-                            fontSize: 14,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
               ),

@@ -254,7 +254,7 @@ void main() {
         expect(negative.style?.color, AppColors.lossGreen);
         for (final changeText in [positive, negative]) {
           expect(changeText.style?.fontSize, isNotNull);
-          expect(changeText.style!.fontSize!, greaterThanOrEqualTo(14));
+          expect(changeText.style!.fontSize!, greaterThanOrEqualTo(20));
           expect(changeText.style?.fontWeight, isNotNull);
           expect(
             changeText.style!.fontWeight!.value,
