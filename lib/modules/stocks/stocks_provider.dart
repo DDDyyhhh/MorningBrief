@@ -42,7 +42,7 @@ class StocksProvider extends ChangeNotifier {
   ModuleState<List<StockItem>> get state => _state;
 
   Future<void> loadFromCacheOrRefresh() async {
-    final configuration = _readConfiguration();
+    final configuration = await _readConfigurationOrFallback();
     if (configuration == null) return;
 
     final cachedQuotes = await _readFreshCachedQuotes();
@@ -55,10 +55,19 @@ class StocksProvider extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
-    final configuration = _readConfiguration();
+    final configuration = await _readConfigurationOrFallback();
     if (configuration == null) return;
 
     await _refresh(configuration);
+  }
+
+  Future<_StocksConfiguration?> _readConfigurationOrFallback() async {
+    try {
+      return _readConfiguration();
+    } catch (_) {
+      await _useStaleCacheOrError();
+      return null;
+    }
   }
 
   _StocksConfiguration? _readConfiguration() {
@@ -89,10 +98,16 @@ class StocksProvider extends ChangeNotifier {
 
   Future<void> _refresh(_StocksConfiguration configuration) async {
     _setState(ModuleState.loading());
-    final quotes = await repository.fetchQuotes(
-      configuration.symbols,
-      configuration.apiKey,
-    );
+    late final List<StockItem> quotes;
+    try {
+      quotes = await repository.fetchQuotes(
+        configuration.symbols,
+        configuration.apiKey,
+      );
+    } catch (_) {
+      await _useStaleCacheOrError();
+      return;
+    }
     if (quotes.isEmpty) {
       _setState(ModuleState.empty());
       return;
@@ -109,12 +124,38 @@ class StocksProvider extends ChangeNotifier {
     _setState(ModuleState.data(quotes));
   }
 
-  Future<List<StockItem>?> _readFreshCachedQuotes() async {
-    try {
-      final cached = await cache.readFresh(
+  Future<void> _useStaleCacheOrError() async {
+    final cachedQuotes = await _readAnyCachedQuotes();
+    if (cachedQuotes != null) {
+      _setState(ModuleState.offline(cachedQuotes));
+      return;
+    }
+
+    _setState(
+      ModuleState.error(
+        const AppError(type: AppErrorType.network, message: '股票行情加载失败'),
+      ),
+    );
+  }
+
+  Future<List<StockItem>?> _readFreshCachedQuotes() {
+    return _readCachedQuotes(
+      () => cache.readFresh(
         AppConstants.cacheStocks,
         const Duration(minutes: 15),
-      );
+      ),
+    );
+  }
+
+  Future<List<StockItem>?> _readAnyCachedQuotes() {
+    return _readCachedQuotes(() => cache.readAny(AppConstants.cacheStocks));
+  }
+
+  Future<List<StockItem>?> _readCachedQuotes(
+    Future<CachedValue?> Function() readCache,
+  ) async {
+    try {
+      final cached = await readCache();
       if (cached == null) return null;
 
       final decoded = jsonDecode(cached.jsonValue);

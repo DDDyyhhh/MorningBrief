@@ -42,15 +42,25 @@ class _ThrowingStocksRepository implements StocksRepository {
 }
 
 class _ControllableCacheManager implements CacheManager {
-  _ControllableCacheManager({this.freshValue, this.freshError});
+  _ControllableCacheManager({
+    this.freshValue,
+    this.freshError,
+    this.anyValue,
+    this.anyError,
+    this.saveError,
+  });
 
   CachedValue? freshValue;
   Object? freshError;
+  CachedValue? anyValue;
+  Object? anyError;
+  Object? saveError;
   int freshReads = 0;
   int anyReads = 0;
   int saveCalls = 0;
   String? freshKey;
   Duration? freshTtl;
+  String? anyKey;
   String? savedKey;
   String? savedJson;
 
@@ -66,7 +76,9 @@ class _ControllableCacheManager implements CacheManager {
   @override
   Future<CachedValue?> readAny(String key) async {
     anyReads++;
-    return null;
+    anyKey = key;
+    if (anyError != null) throw anyError!;
+    return anyValue;
   }
 
   @override
@@ -74,6 +86,7 @@ class _ControllableCacheManager implements CacheManager {
     saveCalls++;
     savedKey = key;
     savedJson = jsonValue;
+    if (saveError != null) throw saveError!;
   }
 }
 
@@ -94,6 +107,15 @@ CachedValue _freshCache(String jsonValue) {
     jsonValue: jsonValue,
     savedAt: DateTime(2026, 7, 10, 8),
     isFresh: true,
+  );
+}
+
+CachedValue _staleCache(String jsonValue) {
+  return CachedValue(
+    key: AppConstants.cacheStocks,
+    jsonValue: jsonValue,
+    savedAt: DateTime(2026, 7, 9, 8),
+    isFresh: false,
   );
 }
 
@@ -314,6 +336,165 @@ void main() {
       await provider.refresh();
 
       expect(statuses, [ModuleStatus.loading, ModuleStatus.data]);
+    },
+  );
+
+  test(
+    'StocksProvider uses readable stale cache when repository fails',
+    () async {
+      final cachedQuote = _stock(symbol: 'AAPL');
+      final repository = _ThrowingStocksRepository();
+      final cache = _ControllableCacheManager(
+        anyValue: _staleCache(jsonEncode([cachedQuote.toJson()])),
+      );
+      final provider = _provider(repository: repository, cache: cache);
+      addTearDown(provider.dispose);
+      final statuses = <ModuleStatus>[];
+      provider.addListener(() => statuses.add(provider.state.status));
+
+      await expectLater(provider.refresh(), completes);
+
+      expect(provider.state.status, ModuleStatus.offline);
+      expect(provider.state.data?.single.symbol, 'AAPL');
+      expect(repository.calls, 1);
+      expect(cache.anyReads, 1);
+      expect(cache.anyKey, AppConstants.cacheStocks);
+      expect(statuses, [ModuleStatus.loading, ModuleStatus.offline]);
+    },
+  );
+
+  test(
+    'StocksProvider shows standard error when repository fails without cache',
+    () async {
+      final repository = _ThrowingStocksRepository();
+      final cache = _ControllableCacheManager();
+      final provider = _provider(repository: repository, cache: cache);
+      addTearDown(provider.dispose);
+      final statuses = <ModuleStatus>[];
+      provider.addListener(() => statuses.add(provider.state.status));
+
+      await expectLater(provider.refresh(), completes);
+
+      expect(provider.state.status, ModuleStatus.error);
+      expect(provider.state.error?.type, AppErrorType.network);
+      expect(provider.state.error?.message, '股票行情加载失败');
+      expect(cache.anyReads, 1);
+      expect(statuses, [ModuleStatus.loading, ModuleStatus.error]);
+    },
+  );
+
+  final unusableStaleCaches = <String, String?>{
+    'missing stale cache': null,
+    'malformed stale JSON': 'not valid JSON',
+    'wrong stale JSON shape': '{}',
+    'invalid stale stock item': '[{"symbol": 1}]',
+    'empty stale list': '[]',
+  };
+
+  for (final invalidCache in unusableStaleCaches.entries) {
+    test(
+      'StocksProvider treats ${invalidCache.key} as unavailable after failure',
+      () async {
+        final cache = _ControllableCacheManager(
+          anyValue: invalidCache.value == null
+              ? null
+              : _staleCache(invalidCache.value!),
+        );
+        final provider = _provider(
+          repository: _ThrowingStocksRepository(),
+          cache: cache,
+        );
+        addTearDown(provider.dispose);
+
+        await expectLater(provider.refresh(), completes);
+
+        expect(provider.state.status, ModuleStatus.error);
+        expect(provider.state.error?.type, AppErrorType.network);
+        expect(provider.state.error?.message, '股票行情加载失败');
+        expect(cache.anyReads, 1);
+      },
+    );
+  }
+
+  test(
+    'StocksProvider treats stale cache read exceptions as unavailable',
+    () async {
+      final cache = _ControllableCacheManager(
+        anyError: StateError('cache unavailable'),
+      );
+      final provider = _provider(
+        repository: _ThrowingStocksRepository(),
+        cache: cache,
+      );
+      addTearDown(provider.dispose);
+
+      await expectLater(provider.refresh(), completes);
+
+      expect(provider.state.status, ModuleStatus.error);
+      expect(provider.state.error?.type, AppErrorType.network);
+      expect(provider.state.error?.message, '股票行情加载失败');
+      expect(cache.anyReads, 1);
+    },
+  );
+
+  test('StocksProvider keeps fetched quotes when cache save fails', () async {
+    final quotes = [_stock(), _stock(symbol: 'AAPL')];
+    final cache = _ControllableCacheManager(saveError: StateError('disk full'));
+    final provider = _provider(
+      repository: _FixedStocksRepository(quotes),
+      cache: cache,
+    );
+    addTearDown(provider.dispose);
+
+    await expectLater(provider.refresh(), completes);
+
+    expect(provider.state.status, ModuleStatus.data);
+    expect(provider.state.data, same(quotes));
+    expect(cache.saveCalls, 1);
+    expect(cache.anyReads, 0);
+  });
+
+  test('StocksProvider uses stale cache when api key reader throws', () async {
+    final cachedQuote = _stock(symbol: 'AAPL');
+    final repository = _FixedStocksRepository([_stock()]);
+    final cache = _ControllableCacheManager(
+      anyValue: _staleCache(jsonEncode([cachedQuote.toJson()])),
+    );
+    final provider = _provider(
+      repository: repository,
+      cache: cache,
+      apiKeyReader: () => throw StateError('settings unavailable'),
+    );
+    addTearDown(provider.dispose);
+
+    await expectLater(provider.loadFromCacheOrRefresh(), completes);
+
+    expect(provider.state.status, ModuleStatus.offline);
+    expect(provider.state.data?.single.symbol, 'AAPL');
+    expect(repository.calls, 0);
+    expect(cache.freshReads, 0);
+    expect(cache.anyReads, 1);
+  });
+
+  test(
+    'StocksProvider shows standard error when symbols reader throws',
+    () async {
+      final repository = _FixedStocksRepository([_stock()]);
+      final cache = _ControllableCacheManager();
+      final provider = _provider(
+        repository: repository,
+        cache: cache,
+        symbolsReader: () => throw StateError('settings unavailable'),
+      );
+      addTearDown(provider.dispose);
+
+      await expectLater(provider.refresh(), completes);
+
+      expect(provider.state.status, ModuleStatus.error);
+      expect(provider.state.error?.type, AppErrorType.network);
+      expect(provider.state.error?.message, '股票行情加载失败');
+      expect(repository.calls, 0);
+      expect(cache.anyReads, 1);
     },
   );
 }
