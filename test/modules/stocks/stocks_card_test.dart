@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:morningbrief/core/cache_manager.dart';
 import 'package:morningbrief/core/constants.dart';
+import 'package:morningbrief/core/theme/app_theme.dart';
 import 'package:morningbrief/core/theme/colors.dart';
 import 'package:morningbrief/models/stock_item.dart';
 import 'package:morningbrief/modules/stocks/stocks_card.dart';
@@ -89,8 +90,9 @@ StocksProvider _provider({
   );
 }
 
-Widget _stocksCard(StocksProvider provider) {
+Widget _stocksCard(StocksProvider provider, {ThemeData? theme}) {
   return MaterialApp(
+    theme: theme,
     home: Scaffold(
       body: ChangeNotifierProvider.value(
         value: provider,
@@ -164,11 +166,13 @@ void main() {
   testWidgets('StocksCard marks stale cached quotes as offline', (
     tester,
   ) async {
-    final cache = MemoryCacheManager();
+    var now = DateTime(2026, 7, 11, 8);
+    final cache = MemoryCacheManager(now: () => now);
     await cache.save(
       AppConstants.cacheStocks,
       jsonEncode([_stock(symbol: 'AAPL', name: 'Apple').toJson()]),
     );
+    now = now.add(const Duration(minutes: 16));
     final provider = _provider(
       repository: _ThrowingStocksRepository(),
       cache: cache,
@@ -219,6 +223,86 @@ void main() {
     expect(positive.style?.color, AppColors.profitRed);
     expect(negative.style?.color, AppColors.lossGreen);
     expect(unchanged.style?.color, isNull);
+  });
+
+  for (final theme in {
+    'light': AppTheme.lightTheme,
+    'dark': AppTheme.darkTheme,
+  }.entries) {
+    testWidgets(
+      'StocksCard uses accessible direction styles in ${theme.key} theme',
+      (tester) async {
+        final provider = _provider(
+          repository: _FixedStocksRepository([
+            _stock(),
+            _stock(
+              symbol: 'AAPL',
+              name: 'Apple',
+              change: -0.10,
+              changePercent: -0.28,
+            ),
+          ]),
+        );
+        addTearDown(provider.dispose);
+        await provider.refresh();
+
+        await tester.pumpWidget(_stocksCard(provider, theme: theme.value));
+
+        final positive = tester.widget<Text>(find.text('+0.30 (+0.86%)'));
+        final negative = tester.widget<Text>(find.text('-0.10 (-0.28%)'));
+        expect(positive.style?.color, AppColors.profitRed);
+        expect(negative.style?.color, AppColors.lossGreen);
+        for (final changeText in [positive, negative]) {
+          expect(changeText.style?.fontSize, isNotNull);
+          expect(changeText.style!.fontSize!, greaterThanOrEqualTo(14));
+          expect(changeText.style?.fontWeight, isNotNull);
+          expect(
+            changeText.style!.fontWeight!.value,
+            greaterThanOrEqualTo(FontWeight.bold.value),
+          );
+        }
+      },
+    );
+  }
+
+  testWidgets('StocksCard renders positive rounded zero as neutral', (
+    tester,
+  ) async {
+    final provider = _provider(
+      repository: _FixedStocksRepository([
+        _stock(change: 0.004, changePercent: 0.004),
+      ]),
+    );
+    addTearDown(provider.dispose);
+    await provider.refresh();
+
+    await tester.pumpWidget(_stocksCard(provider));
+
+    final unchangedFinder = find.text('0.00 (0.00%)');
+    expect(unchangedFinder, findsOneWidget);
+    final unchanged = tester.widget<Text>(unchangedFinder);
+    expect(unchanged.style?.color, isNull);
+    expect(find.text('+0.00 (+0.00%)'), findsNothing);
+  });
+
+  testWidgets('StocksCard renders negative rounded zero as neutral', (
+    tester,
+  ) async {
+    final provider = _provider(
+      repository: _FixedStocksRepository([
+        _stock(change: -0.004, changePercent: -0.004),
+      ]),
+    );
+    addTearDown(provider.dispose);
+    await provider.refresh();
+
+    await tester.pumpWidget(_stocksCard(provider));
+
+    final unchangedFinder = find.text('0.00 (0.00%)');
+    expect(unchangedFinder, findsOneWidget);
+    final unchanged = tester.widget<Text>(unchangedFinder);
+    expect(unchanged.style?.color, isNull);
+    expect(find.text('-0.00 (-0.00%)'), findsNothing);
   });
 
   testWidgets('StocksCard bounds every text field in a narrow quote row', (

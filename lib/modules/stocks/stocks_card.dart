@@ -63,7 +63,8 @@ class _StockQuoteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final changeColor = switch (quote.change) {
+    final displayedChange = double.parse(quote.change.toStringAsFixed(2));
+    final changeColor = switch (displayedChange) {
       > 0 => AppColors.profitRed,
       < 0 => AppColors.lossGreen,
       _ => null,
@@ -103,7 +104,13 @@ class _StockQuoteRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: changeColor == null
                     ? null
-                    : TextStyle(color: changeColor),
+                    : (Theme.of(context).textTheme.bodyMedium ??
+                              const TextStyle())
+                          .copyWith(
+                            color: changeColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
               ),
             ],
           ),
@@ -113,8 +120,8 @@ class _StockQuoteRow extends StatelessWidget {
   }
 
   String _signed(double value) {
-    if (value == 0) return '0.00';
     final formatted = value.toStringAsFixed(2);
+    if (double.parse(formatted) == 0) return '0.00';
     return value > 0 ? '+$formatted' : formatted;
   }
 }
