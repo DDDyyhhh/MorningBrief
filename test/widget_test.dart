@@ -3,9 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:morningbrief/app.dart';
+import 'package:morningbrief/core/cache_manager.dart';
 import 'package:morningbrief/core/storage.dart';
 import 'package:morningbrief/modules/calendar/calendar_provider.dart';
 import 'package:morningbrief/modules/calendar/calendar_service.dart';
+import 'package:morningbrief/models/weather_model.dart';
+import 'package:morningbrief/modules/weather/weather_provider.dart';
 import 'package:morningbrief/shared/module_config_provider.dart';
 
 void main() {
@@ -18,12 +21,21 @@ void main() {
     await provider.load();
     final calendarProvider = CalendarProvider(MemoryCalendarService());
     await calendarProvider.loadToday();
+    final weatherProvider = WeatherProvider(
+      repository: _UnusedWeatherRepository(),
+      cache: MemoryCacheManager(),
+      cityReader: () => provider.city,
+      apiKeyReader: () => provider.weatherApiKey,
+    );
+    addTearDown(weatherProvider.dispose);
+    await weatherProvider.refresh();
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: provider),
           ChangeNotifierProvider.value(value: calendarProvider),
+          ChangeNotifierProvider.value(value: weatherProvider),
         ],
         child: const MorningBriefApp(),
       ),
@@ -33,4 +45,14 @@ void main() {
     expect(find.text('早安！'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
+}
+
+class _UnusedWeatherRepository implements WeatherRepository {
+  @override
+  Future<WeatherModel> fetchWeather({
+    required String city,
+    required String apiKey,
+  }) {
+    throw UnimplementedError('Weather fetch should not run without API key');
+  }
 }

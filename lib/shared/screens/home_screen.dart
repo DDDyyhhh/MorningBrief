@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/module_config.dart';
 import '../../modules/calendar/calendar_card.dart';
+import '../../modules/weather/weather_card.dart';
 import '../module_config_provider.dart';
 import '../widgets/module_card.dart';
 
@@ -70,6 +71,7 @@ class _PlaceholderModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (id == MorningModuleId.weather) return const WeatherCard();
     if (id == MorningModuleId.calendar) return const CalendarCard();
     final icon = switch (id) {
       MorningModuleId.weather => Icons.wb_sunny_outlined,
