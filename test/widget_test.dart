@@ -7,7 +7,9 @@ import 'package:morningbrief/core/cache_manager.dart';
 import 'package:morningbrief/core/storage.dart';
 import 'package:morningbrief/modules/calendar/calendar_provider.dart';
 import 'package:morningbrief/modules/calendar/calendar_service.dart';
+import 'package:morningbrief/models/news_article.dart';
 import 'package:morningbrief/models/weather_model.dart';
+import 'package:morningbrief/modules/news/news_provider.dart';
 import 'package:morningbrief/modules/weather/weather_provider.dart';
 import 'package:morningbrief/shared/module_config_provider.dart';
 
@@ -29,6 +31,12 @@ void main() {
     );
     addTearDown(weatherProvider.dispose);
     await weatherProvider.refresh();
+    final newsProvider = NewsProvider(
+      repository: _UnusedNewsRepository(),
+      cache: MemoryCacheManager(),
+      feedsReader: () => const <Uri>[],
+    );
+    addTearDown(newsProvider.dispose);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -36,6 +44,7 @@ void main() {
           ChangeNotifierProvider.value(value: provider),
           ChangeNotifierProvider.value(value: calendarProvider),
           ChangeNotifierProvider.value(value: weatherProvider),
+          ChangeNotifierProvider.value(value: newsProvider),
         ],
         child: const MorningBriefApp(),
       ),
@@ -54,5 +63,12 @@ class _UnusedWeatherRepository implements WeatherRepository {
     required String apiKey,
   }) {
     throw UnimplementedError('Weather fetch should not run without API key');
+  }
+}
+
+class _UnusedNewsRepository implements NewsRepository {
+  @override
+  Future<List<NewsArticle>> fetchArticles(List<Uri> feeds, {int limit = 10}) {
+    throw UnimplementedError('News fetch should not run in this widget test');
   }
 }

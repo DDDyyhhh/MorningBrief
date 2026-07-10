@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import 'app.dart';
 import 'core/api_client.dart';
 import 'core/cache_manager.dart';
+import 'core/constants.dart';
 import 'core/database/app_database.dart';
 import 'core/storage.dart';
 import 'modules/calendar/calendar_provider.dart';
 import 'modules/calendar/calendar_service.dart';
+import 'modules/news/news_provider.dart';
+import 'modules/news/news_service.dart';
 import 'modules/weather/weather_provider.dart';
 import 'modules/weather/weather_service.dart';
 import 'shared/module_config_provider.dart';
@@ -18,6 +21,7 @@ Future<void> main() async {
 
 Future<void> startApp({
   Future<AppDatabase> Function()? openCalendarDatabase,
+  NewsRepository? newsRepository,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
@@ -39,6 +43,12 @@ Future<void> startApp({
     apiKeyReader: () => moduleConfigProvider.weatherApiKey,
   );
   await weatherProvider.loadFromCacheOrRefresh();
+  final newsProvider = NewsProvider(
+    repository: newsRepository ?? NewsServiceRepository(NewsService(apiClient)),
+    cache: cacheManager,
+    feedsReader: () => AppConstants.generalNewsFeeds,
+  );
+  await newsProvider.loadFromCacheOrRefresh();
 
   runApp(
     MultiProvider(
@@ -46,6 +56,7 @@ Future<void> startApp({
         ChangeNotifierProvider.value(value: moduleConfigProvider),
         ChangeNotifierProvider.value(value: calendarProvider),
         ChangeNotifierProvider.value(value: weatherProvider),
+        ChangeNotifierProvider.value(value: newsProvider),
       ],
       child: const MorningBriefApp(),
     ),

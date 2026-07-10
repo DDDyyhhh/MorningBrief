@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:morningbrief/main.dart' as app_main;
 import 'package:morningbrief/models/calendar_event.dart';
+import 'package:morningbrief/models/news_article.dart';
 import 'package:morningbrief/modules/calendar/calendar_provider.dart';
 import 'package:morningbrief/modules/calendar/calendar_service.dart';
+import 'package:morningbrief/modules/news/news_provider.dart';
 import 'package:morningbrief/shared/module_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,7 +13,10 @@ void main() {
 
   testWidgets('app startup renders even when calendar database initialization fails', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await app_main.startApp(openCalendarDatabase: () async => throw StateError('database corrupt'));
+    await app_main.startApp(
+      openCalendarDatabase: () async => throw StateError('database corrupt'),
+      newsRepository: _EmptyNewsRepository(),
+    );
     await tester.pump();
 
     expect(find.text('MorningBrief'), findsOneWidget);
@@ -59,6 +64,14 @@ void main() {
     expect(provider.state.status, ModuleStatus.error);
     expect(provider.state.error?.message, '日程保存失败');
   });
+}
+
+class _EmptyNewsRepository implements NewsRepository {
+  @override
+  Future<List<NewsArticle>> fetchArticles(
+    List<Uri> feeds, {
+    int limit = 10,
+  }) async => [];
 }
 
 class _ThrowingCalendarService implements CalendarService {
