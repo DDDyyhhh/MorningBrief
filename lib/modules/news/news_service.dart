@@ -14,28 +14,51 @@ class NewsService {
     List<Uri> feeds, {
     int limit = 10,
   }) async {
-    final articles = <NewsArticle>[];
-    for (final feed in feeds) {
-      final xmlText = await _client.getText(feed);
-      final document = XmlDocument.parse(xmlText);
-      final channel = document.findAllElements('channel').first;
-      final source = _elementText(channel, 'title');
-      for (final item in channel.findElements('item')) {
-        articles.add(
-          NewsArticle(
-            title: _elementText(item, 'title'),
-            summary: _elementText(item, 'description'),
-            source: source,
-            url: Uri.parse(_elementText(item, 'link')),
-            publishedAt: _parsePublishedAt(_elementText(item, 'pubDate')),
-          ),
-        );
-      }
+    final feedResults = await Future.wait(feeds.map(_fetchFeed));
+    final successfulFeeds = feedResults.whereType<List<NewsArticle>>().toList();
+    if (feeds.isNotEmpty && successfulFeeds.isEmpty) {
+      throw NewsFeedException('所有新闻源均加载失败');
     }
+    final articles = successfulFeeds.expand((items) => items).toList();
     articles.sort(
       (left, right) => right.publishedAt.compareTo(left.publishedAt),
     );
     return articles.take(limit).toList();
+  }
+
+  Future<List<NewsArticle>?> _fetchFeed(Uri feed) async {
+    try {
+      final xmlText = await _client.getText(feed);
+      final document = XmlDocument.parse(xmlText);
+      final channels = document.findAllElements('channel');
+      if (channels.isEmpty) throw const FormatException('RSS channel missing');
+      final channel = channels.first;
+      final source = _elementText(channel, 'title');
+      final articles = <NewsArticle>[];
+      for (final item in channel.findElements('item')) {
+        final article = _parseItem(item, source);
+        if (article != null) articles.add(article);
+      }
+      return articles;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  NewsArticle? _parseItem(XmlElement item, String source) {
+    try {
+      final url = Uri.parse(_elementText(item, 'link'));
+      if (!url.hasScheme || url.host.isEmpty) return null;
+      return NewsArticle(
+        title: _elementText(item, 'title'),
+        summary: _elementText(item, 'description'),
+        source: source,
+        url: url,
+        publishedAt: _parsePublishedAt(_elementText(item, 'pubDate')),
+      );
+    } on FormatException {
+      return null;
+    }
   }
 
   String _elementText(XmlElement parent, String name) {
@@ -55,4 +78,13 @@ class NewsService {
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }
+}
+
+class NewsFeedException implements Exception {
+  NewsFeedException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'NewsFeedException: $message';
 }

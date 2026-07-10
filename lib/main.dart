@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import 'core/cache_manager.dart';
 import 'core/constants.dart';
 import 'core/database/app_database.dart';
 import 'core/storage.dart';
+import 'models/module_config.dart';
 import 'modules/calendar/calendar_provider.dart';
 import 'modules/calendar/calendar_service.dart';
 import 'modules/news/news_provider.dart';
@@ -48,7 +51,17 @@ Future<void> startApp({
     cache: cacheManager,
     feedsReader: () => AppConstants.generalNewsFeeds,
   );
-  await newsProvider.loadFromCacheOrRefresh();
+  var newsLoadStarted = false;
+  void loadNewsIfEnabled() {
+    if (newsLoadStarted ||
+        !moduleConfigProvider.isEnabled(MorningModuleId.news)) {
+      return;
+    }
+    newsLoadStarted = true;
+    unawaited(_loadNewsSafely(newsProvider));
+  }
+
+  moduleConfigProvider.addListener(loadNewsIfEnabled);
 
   runApp(
     MultiProvider(
@@ -61,6 +74,15 @@ Future<void> startApp({
       child: const MorningBriefApp(),
     ),
   );
+  loadNewsIfEnabled();
+}
+
+Future<void> _loadNewsSafely(NewsProvider provider) async {
+  try {
+    await provider.loadFromCacheOrRefresh();
+  } catch (_) {
+    // News loading must never block or fail application startup.
+  }
 }
 
 Future<AppDatabase?> _openDatabaseOrNull(
