@@ -14,6 +14,8 @@ import 'modules/calendar/calendar_provider.dart';
 import 'modules/calendar/calendar_service.dart';
 import 'modules/news/news_provider.dart';
 import 'modules/news/news_service.dart';
+import 'modules/stocks/stocks_provider.dart';
+import 'modules/stocks/stocks_service.dart';
 import 'modules/weather/weather_provider.dart';
 import 'modules/weather/weather_service.dart';
 import 'shared/module_config_provider.dart';
@@ -25,6 +27,7 @@ Future<void> main() async {
 Future<void> startApp({
   Future<AppDatabase> Function()? openCalendarDatabase,
   NewsRepository? newsRepository,
+  StocksRepository? stocksRepository,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
@@ -51,6 +54,13 @@ Future<void> startApp({
     cache: cacheManager,
     feedsReader: () => AppConstants.generalNewsFeeds,
   );
+  final stocksProvider = StocksProvider(
+    repository:
+        stocksRepository ?? StocksServiceRepository(StocksService(apiClient)),
+    cache: cacheManager,
+    symbolsReader: () => moduleConfigProvider.stockSymbols,
+    apiKeyReader: () => moduleConfigProvider.stockApiKey,
+  );
   var newsLoadStarted = false;
   void loadNewsIfEnabled() {
     if (newsLoadStarted ||
@@ -63,6 +73,18 @@ Future<void> startApp({
 
   moduleConfigProvider.addListener(loadNewsIfEnabled);
 
+  var stocksLoadStarted = false;
+  void loadStocksIfEnabled() {
+    if (stocksLoadStarted ||
+        !moduleConfigProvider.isEnabled(MorningModuleId.stocks)) {
+      return;
+    }
+    stocksLoadStarted = true;
+    unawaited(_loadStocksSafely(stocksProvider));
+  }
+
+  moduleConfigProvider.addListener(loadStocksIfEnabled);
+
   runApp(
     MultiProvider(
       providers: [
@@ -70,11 +92,13 @@ Future<void> startApp({
         ChangeNotifierProvider.value(value: calendarProvider),
         ChangeNotifierProvider.value(value: weatherProvider),
         ChangeNotifierProvider.value(value: newsProvider),
+        ChangeNotifierProvider.value(value: stocksProvider),
       ],
       child: const MorningBriefApp(),
     ),
   );
   loadNewsIfEnabled();
+  loadStocksIfEnabled();
 }
 
 Future<void> _loadNewsSafely(NewsProvider provider) async {
@@ -82,6 +106,14 @@ Future<void> _loadNewsSafely(NewsProvider provider) async {
     await provider.loadFromCacheOrRefresh();
   } catch (_) {
     // News loading must never block or fail application startup.
+  }
+}
+
+Future<void> _loadStocksSafely(StocksProvider provider) async {
+  try {
+    await provider.loadFromCacheOrRefresh();
+  } catch (_) {
+    // Stock loading must never block or fail application startup.
   }
 }
 

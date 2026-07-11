@@ -7,8 +7,11 @@ import 'package:morningbrief/core/storage.dart';
 import 'package:morningbrief/modules/calendar/calendar_provider.dart';
 import 'package:morningbrief/modules/calendar/calendar_service.dart';
 import 'package:morningbrief/models/news_article.dart';
+import 'package:morningbrief/models/module_config.dart';
+import 'package:morningbrief/models/stock_item.dart';
 import 'package:morningbrief/models/weather_model.dart';
 import 'package:morningbrief/modules/news/news_provider.dart';
+import 'package:morningbrief/modules/stocks/stocks_provider.dart';
 import 'package:morningbrief/modules/weather/weather_provider.dart';
 import 'package:morningbrief/shared/module_config_provider.dart';
 import 'package:morningbrief/shared/screens/home_screen.dart';
@@ -53,6 +56,25 @@ class _HomeScreenNewsRepository implements NewsRepository {
   }
 }
 
+class _HomeScreenStocksRepository implements StocksRepository {
+  @override
+  Future<List<StockItem>> fetchQuotes(
+    List<String> symbols,
+    String apiKey,
+  ) async {
+    return [
+      StockItem(
+        symbol: 'AAPL',
+        name: 'Apple',
+        price: 123.45,
+        change: 1.25,
+        changePercent: 1.02,
+        updatedAt: DateTime.utc(2026, 7, 10),
+      ),
+    ];
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -63,6 +85,7 @@ void main() {
       final storage = await AppStorage.create();
       final provider = ModuleConfigProvider(storage);
       await provider.load();
+      await provider.toggle(MorningModuleId.techNews, false);
       final calendarProvider = CalendarProvider(MemoryCalendarService());
       await calendarProvider.loadToday();
       final weatherProvider = WeatherProvider(
@@ -79,6 +102,14 @@ void main() {
       );
       addTearDown(newsProvider.dispose);
       await newsProvider.refresh();
+      final stocksProvider = StocksProvider(
+        repository: _HomeScreenStocksRepository(),
+        cache: MemoryCacheManager(),
+        symbolsReader: () => ['AAPL'],
+        apiKeyReader: () => 'test-key',
+      );
+      addTearDown(stocksProvider.dispose);
+      await stocksProvider.refresh();
 
       await tester.pumpWidget(
         MultiProvider(
@@ -87,10 +118,16 @@ void main() {
             ChangeNotifierProvider.value(value: calendarProvider),
             ChangeNotifierProvider.value(value: weatherProvider),
             ChangeNotifierProvider.value(value: newsProvider),
+            ChangeNotifierProvider.value(value: stocksProvider),
           ],
           child: const MaterialApp(home: HomeScreen()),
         ),
       );
+
+      expect(find.text('\u80a1\u7968\u8d22\u7ecf'), findsOneWidget);
+      expect(find.text('AAPL'), findsOneWidget);
+      expect(find.text('123.45'), findsOneWidget);
+      expect(find.text('\u6a21\u5757\u6b63\u5728\u52a0\u8f7d'), findsNothing);
 
       expect(find.text('早安！'), findsOneWidget);
       expect(find.text('天气'), findsOneWidget);
