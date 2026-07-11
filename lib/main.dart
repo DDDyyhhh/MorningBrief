@@ -73,13 +73,15 @@ Future<void> startApp({
 
   moduleConfigProvider.addListener(loadNewsIfEnabled);
 
-  var stocksLoadStarted = false;
+  final loadedStockConfigurations = <String>{};
   void loadStocksIfEnabled() {
-    if (stocksLoadStarted ||
-        !moduleConfigProvider.isEnabled(MorningModuleId.stocks)) {
+    if (!moduleConfigProvider.isEnabled(MorningModuleId.stocks)) {
       return;
     }
-    stocksLoadStarted = true;
+    final configurationFingerprint = _stocksConfigurationFingerprint(
+      moduleConfigProvider,
+    );
+    if (!loadedStockConfigurations.add(configurationFingerprint)) return;
     unawaited(_loadStocksSafely(stocksProvider));
   }
 
@@ -115,6 +117,13 @@ Future<void> _loadStocksSafely(StocksProvider provider) async {
   } catch (_) {
     // Stock loading must never block or fail application startup.
   }
+}
+
+String _stocksConfigurationFingerprint(ModuleConfigProvider provider) {
+  final symbols = provider.stockSymbols
+      .map((symbol) => symbol.trim())
+      .where((symbol) => symbol.isNotEmpty);
+  return '${provider.stockApiKey.trim()}\u0000${symbols.join('\u0000')}';
 }
 
 Future<AppDatabase?> _openDatabaseOrNull(

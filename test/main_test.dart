@@ -206,6 +206,17 @@ void main() {
     await tester.pump();
 
     expect(repository.calls, 0);
+    final context = tester.element(find.byType(HomeScreen));
+    final configProvider = context.read<ModuleConfigProvider>();
+    await configProvider.updateStockSymbols(['AAPL']);
+    await tester.pump();
+
+    expect(repository.calls, 0);
+
+    await configProvider.toggle(MorningModuleId.stocks, true);
+    await tester.pump();
+
+    expect(repository.calls, 1);
   });
 
   testWidgets('enabling stocks triggers exactly one initial load', (
@@ -233,5 +244,43 @@ void main() {
     await tester.pump();
 
     expect(repository.calls, 1);
+  });
+
+  testWidgets('enabled stocks reload once for each distinct configuration', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = _CountingStocksRepository();
+
+    await app_main.startApp(
+      openCalendarDatabase: () async => throw StateError('no database'),
+      newsRepository: _CountingNewsRepository(),
+      stocksRepository: repository,
+    );
+    await tester.pump();
+    final context = tester.element(find.byType(HomeScreen));
+    final configProvider = context.read<ModuleConfigProvider>();
+
+    expect(repository.calls, 0);
+
+    await configProvider.updateStockApiKey('test-key');
+    await tester.pump();
+
+    expect(repository.calls, 1);
+
+    await configProvider.updateStockApiKey('test-key');
+    await tester.pump();
+
+    expect(repository.calls, 1);
+
+    await configProvider.updateStockSymbols([' AAPL ', ' ']);
+    await tester.pump();
+
+    expect(repository.calls, 2);
+
+    await configProvider.updateStockSymbols(['AAPL']);
+    await tester.pump();
+
+    expect(repository.calls, 2);
   });
 }
