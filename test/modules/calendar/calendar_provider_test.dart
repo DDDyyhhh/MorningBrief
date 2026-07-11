@@ -1,28 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:morningbrief/core/constants.dart';
 import 'package:morningbrief/main.dart' as app_main;
 import 'package:morningbrief/models/calendar_event.dart';
 import 'package:morningbrief/models/news_article.dart';
+import 'package:morningbrief/models/stock_item.dart';
 import 'package:morningbrief/modules/calendar/calendar_provider.dart';
 import 'package:morningbrief/modules/calendar/calendar_service.dart';
 import 'package:morningbrief/modules/news/news_provider.dart';
+import 'package:morningbrief/modules/stocks/stocks_provider.dart';
 import 'package:morningbrief/shared/module_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('app startup renders even when calendar database initialization fails', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await app_main.startApp(
-      openCalendarDatabase: () async => throw StateError('database corrupt'),
-      newsRepository: _EmptyNewsRepository(),
-    );
-    await tester.pump();
+  testWidgets(
+    'app startup renders even when calendar database initialization fails',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        AppConstants.stockApiKey: 'test-key',
+      });
+      final stocksRepository = _CountingStocksRepository();
+      await app_main.startApp(
+        openCalendarDatabase: () async => throw StateError('database corrupt'),
+        newsRepository: _EmptyNewsRepository(),
+        stocksRepository: stocksRepository,
+      );
+      await tester.pump();
 
-    expect(find.text('MorningBrief'), findsOneWidget);
-    expect(find.text('日历与日程'), findsOneWidget);
-    expect(find.text('日程读取失败'), findsOneWidget);
-  });
+      expect(stocksRepository.calls, 1);
+
+      expect(find.text('MorningBrief'), findsOneWidget);
+      expect(find.text('日历与日程'), findsOneWidget);
+      expect(find.text('日程读取失败'), findsOneWidget);
+    },
+  );
 
   test('CalendarProvider loads today events and toggles completion', () async {
     final service = MemoryCalendarService(now: () => DateTime(2026, 7, 7, 8));
@@ -72,6 +84,19 @@ class _EmptyNewsRepository implements NewsRepository {
     List<Uri> feeds, {
     int limit = 10,
   }) async => [];
+}
+
+class _CountingStocksRepository implements StocksRepository {
+  int calls = 0;
+
+  @override
+  Future<List<StockItem>> fetchQuotes(
+    List<String> symbols,
+    String apiKey,
+  ) async {
+    calls++;
+    return [];
+  }
 }
 
 class _ThrowingCalendarService implements CalendarService {
