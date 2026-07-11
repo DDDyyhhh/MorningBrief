@@ -16,6 +16,8 @@ import 'modules/news/news_provider.dart';
 import 'modules/news/news_service.dart';
 import 'modules/stocks/stocks_provider.dart';
 import 'modules/stocks/stocks_service.dart';
+import 'modules/tech_news/tech_news_provider.dart';
+import 'modules/tech_news/tech_news_service.dart';
 import 'modules/weather/weather_provider.dart';
 import 'modules/weather/weather_service.dart';
 import 'shared/module_config_provider.dart';
@@ -28,6 +30,7 @@ Future<void> startApp({
   Future<AppDatabase> Function()? openCalendarDatabase,
   NewsRepository? newsRepository,
   StocksRepository? stocksRepository,
+  TechNewsRepository? techNewsRepository,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
@@ -61,6 +64,14 @@ Future<void> startApp({
     symbolsReader: () => moduleConfigProvider.stockSymbols,
     apiKeyReader: () => moduleConfigProvider.stockApiKey,
   );
+  final techNewsProvider = TechNewsProvider(
+    repository:
+        techNewsRepository ??
+        TechNewsServiceRepository(
+          TechNewsService(NewsServiceTechNewsSource(NewsService(apiClient))),
+        ),
+    cache: cacheManager,
+  );
   var newsLoadStarted = false;
   void loadNewsIfEnabled() {
     if (newsLoadStarted ||
@@ -72,6 +83,18 @@ Future<void> startApp({
   }
 
   moduleConfigProvider.addListener(loadNewsIfEnabled);
+
+  var techNewsLoadStarted = false;
+  void loadTechNewsIfEnabled() {
+    if (techNewsLoadStarted ||
+        !moduleConfigProvider.isEnabled(MorningModuleId.techNews)) {
+      return;
+    }
+    techNewsLoadStarted = true;
+    unawaited(_loadTechNewsSafely(techNewsProvider));
+  }
+
+  moduleConfigProvider.addListener(loadTechNewsIfEnabled);
 
   String? lastScheduledStockConfiguration;
   void loadStocksIfEnabled() {
@@ -96,11 +119,13 @@ Future<void> startApp({
         ChangeNotifierProvider.value(value: weatherProvider),
         ChangeNotifierProvider.value(value: newsProvider),
         ChangeNotifierProvider.value(value: stocksProvider),
+        ChangeNotifierProvider.value(value: techNewsProvider),
       ],
       child: const MorningBriefApp(),
     ),
   );
   loadNewsIfEnabled();
+  loadTechNewsIfEnabled();
   loadStocksIfEnabled();
 }
 
@@ -117,6 +142,14 @@ Future<void> _loadStocksSafely(StocksProvider provider) async {
     await provider.loadFromCacheOrRefresh();
   } catch (_) {
     // Stock loading must never block or fail application startup.
+  }
+}
+
+Future<void> _loadTechNewsSafely(TechNewsProvider provider) async {
+  try {
+    await provider.loadFromCacheOrRefresh();
+  } catch (_) {
+    // Tech/AI news loading must never block or fail application startup.
   }
 }
 

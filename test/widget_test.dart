@@ -12,6 +12,7 @@ import 'package:morningbrief/models/stock_item.dart';
 import 'package:morningbrief/models/weather_model.dart';
 import 'package:morningbrief/modules/news/news_provider.dart';
 import 'package:morningbrief/modules/stocks/stocks_provider.dart';
+import 'package:morningbrief/modules/tech_news/tech_news_provider.dart';
 import 'package:morningbrief/modules/weather/weather_provider.dart';
 import 'package:morningbrief/shared/module_config_provider.dart';
 
@@ -46,6 +47,11 @@ void main() {
       apiKeyReader: () => '',
     );
     addTearDown(stocksProvider.dispose);
+    final techNewsProvider = TechNewsProvider(
+      repository: _UnusedTechNewsRepository(),
+      cache: MemoryCacheManager(),
+    );
+    addTearDown(techNewsProvider.dispose);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -55,6 +61,7 @@ void main() {
           ChangeNotifierProvider.value(value: weatherProvider),
           ChangeNotifierProvider.value(value: newsProvider),
           ChangeNotifierProvider.value(value: stocksProvider),
+          ChangeNotifierProvider.value(value: techNewsProvider),
         ],
         child: const MorningBriefApp(),
       ),
@@ -63,6 +70,7 @@ void main() {
     expect(find.text('MorningBrief'), findsOneWidget);
     expect(find.text('早安！'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+    expect(find.text('科技 AI 新闻'), findsOneWidget);
   });
 }
 
@@ -87,5 +95,14 @@ class _UnusedStocksRepository implements StocksRepository {
   @override
   Future<List<StockItem>> fetchQuotes(List<String> symbols, String apiKey) {
     throw UnimplementedError('Stock fetch should not run in this widget test');
+  }
+}
+
+class _UnusedTechNewsRepository implements TechNewsRepository {
+  @override
+  Future<List<NewsArticle>> fetchArticles({int limit = 8}) {
+    throw UnimplementedError(
+      'Tech/AI news fetch should not run in this widget test',
+    );
   }
 }

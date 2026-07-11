@@ -5,6 +5,7 @@ import '../../models/module_config.dart';
 import '../../modules/calendar/calendar_card.dart';
 import '../../modules/news/news_card.dart';
 import '../../modules/stocks/stocks_card.dart';
+import '../../modules/tech_news/tech_news_card.dart';
 import '../../modules/weather/weather_card.dart';
 import '../module_config_provider.dart';
 import '../widgets/module_card.dart';
@@ -77,6 +78,7 @@ class _PlaceholderModuleCard extends StatelessWidget {
     if (id == MorningModuleId.news) return const NewsCard();
     if (id == MorningModuleId.calendar) return const CalendarCard();
     if (id == MorningModuleId.stocks) return const StocksCard();
+    if (id == MorningModuleId.techNews) return const TechNewsCard();
     final icon = switch (id) {
       MorningModuleId.weather => Icons.wb_sunny_outlined,
       MorningModuleId.news => Icons.article_outlined,
