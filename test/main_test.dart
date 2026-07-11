@@ -246,7 +246,7 @@ void main() {
     expect(repository.calls, 1);
   });
 
-  testWidgets('enabled stocks reload once for each distinct configuration', (
+  testWidgets('enabled stocks reload on configuration changes only', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -282,5 +282,15 @@ void main() {
     await tester.pump();
 
     expect(repository.calls, 2);
+
+    await configProvider.updateStockSymbols(AppConstants.defaultStockSymbols);
+    await tester.pump();
+
+    expect(repository.calls, 3);
+
+    await configProvider.updateStockSymbols(AppConstants.defaultStockSymbols);
+    await tester.pump();
+
+    expect(repository.calls, 3);
   });
 }

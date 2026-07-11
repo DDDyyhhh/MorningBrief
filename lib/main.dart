@@ -73,7 +73,7 @@ Future<void> startApp({
 
   moduleConfigProvider.addListener(loadNewsIfEnabled);
 
-  final loadedStockConfigurations = <String>{};
+  String? lastScheduledStockConfiguration;
   void loadStocksIfEnabled() {
     if (!moduleConfigProvider.isEnabled(MorningModuleId.stocks)) {
       return;
@@ -81,7 +81,8 @@ Future<void> startApp({
     final configurationFingerprint = _stocksConfigurationFingerprint(
       moduleConfigProvider,
     );
-    if (!loadedStockConfigurations.add(configurationFingerprint)) return;
+    if (configurationFingerprint == lastScheduledStockConfiguration) return;
+    lastScheduledStockConfiguration = configurationFingerprint;
     unawaited(_loadStocksSafely(stocksProvider));
   }
 
