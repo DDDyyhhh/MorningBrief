@@ -3,15 +3,52 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/module_config.dart';
 import '../../modules/calendar/calendar_card.dart';
+import '../../modules/calendar/calendar_provider.dart';
 import '../../modules/news/news_card.dart';
+import '../../modules/news/news_provider.dart';
 import '../../modules/stocks/stocks_card.dart';
+import '../../modules/stocks/stocks_provider.dart';
 import '../../modules/tech_news/tech_news_card.dart';
+import '../../modules/tech_news/tech_news_provider.dart';
 import '../../modules/weather/weather_card.dart';
+import '../../modules/weather/weather_provider.dart';
 import '../module_config_provider.dart';
 import '../widgets/module_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _refreshEnabledModules() async {
+    final config = context.read<ModuleConfigProvider>();
+    final refreshes = <Future<void>>[];
+
+    if (config.isEnabled(MorningModuleId.weather)) {
+      refreshes.add(context.read<WeatherProvider>().refresh());
+    }
+    if (config.isEnabled(MorningModuleId.news)) {
+      refreshes.add(context.read<NewsProvider>().refresh());
+    }
+    if (config.isEnabled(MorningModuleId.calendar)) {
+      refreshes.add(context.read<CalendarProvider>().loadToday());
+    }
+    if (config.isEnabled(MorningModuleId.stocks)) {
+      refreshes.add(context.read<StocksProvider>().refresh());
+    }
+    if (config.isEnabled(MorningModuleId.techNews)) {
+      refreshes.add(context.read<TechNewsProvider>().refresh());
+    }
+
+    await Future.wait(refreshes);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已刷新晨间简报')));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +62,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             tooltip: '刷新',
             icon: const Icon(Icons.refresh),
-            onPressed: () {},
+            onPressed: _refreshEnabledModules,
           ),
           IconButton(
             tooltip: '设置',

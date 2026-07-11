@@ -48,28 +48,38 @@ class ModuleConfigProvider extends ChangeNotifier {
   }
 
   Future<void> updateCity(String city) async {
-    _city = city.trim().isEmpty ? AppConstants.defaultCity : city.trim();
+    final nextCity = city.trim().isEmpty
+        ? AppConstants.defaultCity
+        : city.trim();
+    if (_city == nextCity) return;
+    _city = nextCity;
     await _storage.setString(AppConstants.cityName, _city);
     notifyListeners();
   }
 
   Future<void> updateWeatherApiKey(String key) async {
-    _weatherApiKey = key.trim();
+    final nextKey = key.trim();
+    if (_weatherApiKey == nextKey) return;
+    _weatherApiKey = nextKey;
     await _storage.setString(AppConstants.weatherApiKey, _weatherApiKey);
     notifyListeners();
   }
 
   Future<void> updateStockApiKey(String key) async {
-    _stockApiKey = key.trim();
+    final nextKey = key.trim();
+    if (_stockApiKey == nextKey) return;
+    _stockApiKey = nextKey;
     await _storage.setString(AppConstants.stockApiKey, _stockApiKey);
     notifyListeners();
   }
 
   Future<void> updateStockSymbols(List<String> symbols) async {
-    _stockSymbols = symbols
+    final nextSymbols = symbols
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
+    if (listEquals(_stockSymbols, nextSymbols)) return;
+    _stockSymbols = nextSymbols;
     await _storage.setStringList(AppConstants.stockSymbols, _stockSymbols);
     notifyListeners();
   }
