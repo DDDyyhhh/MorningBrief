@@ -14,7 +14,7 @@
 - `flutter devices` found no Android device and `flutter emulators` found no AVD, so the Android manual smoke test cannot run in this environment.
 - 2026-07-14: Full Kotlin stack trace confirmed the incremental-cache cross-drive bug between `C:\Users\86137\AppData\Local\Pub\Cache` and the `E:` project. Added `kotlin.incremental=false` as a reversible workaround.
 - 2026-07-15: With `PUB_CACHE=E:/FlutterPubCache` and `GRADLE_USER_HOME=E:/GradleHome`, `flutter clean`, `flutter pub get`, and `flutter build apk --debug` completed successfully. APK path: `build/app/outputs/flutter-apk/app-debug.apk`.
-- 2026-07-15: Persisted both cache variables at user scope. The current Codex process still needs explicit E: assignments; `bash` resolves to WSL, so Git Bash verification was unavailable.
+- 2026-07-15: The first elevated cache write landed in the elevated profile; a non-elevated current-user write was then applied and verified through `HKCU\Environment` and a fresh PowerShell process. The current Codex process still needs explicit E: assignments; `bash` resolves to WSL, so Git Bash verification was unavailable.
 - 2026-07-15: Pixel_6 uses an Android 35 image under `E:\AppData\Android\Sdk`; Flutter's C: SDK could not start it. A process-local `ANDROID_SDK_ROOT`/`ANDROID_HOME` switch to E: launched the emulator successfully.
 - 2026-07-15: Removed `kotlin.incremental=false` and reran clean plus debug APK build; the build passed, so the workaround is no longer retained.
 - 2026-07-15: Android smoke check passed for launch, settings, toggle restore, empty API-key states, empty calendar, global refresh, and news retry. Refresh showed `已刷新晨间简报`; news retry returned to its expected error state without credentials/network data.
