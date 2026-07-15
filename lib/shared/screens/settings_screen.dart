@@ -62,6 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               labelText: '城市',
               border: OutlineInputBorder(),
             ),
+            onEditingComplete: () => provider.updateCity(_cityController.text),
             onSubmitted: provider.updateCity,
           ),
           const SizedBox(height: 12),
@@ -71,6 +72,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               labelText: 'OpenWeatherMap API Key',
               border: OutlineInputBorder(),
             ),
+            onEditingComplete: () =>
+                provider.updateWeatherApiKey(_weatherKeyController.text),
             onSubmitted: provider.updateWeatherApiKey,
           ),
           const SizedBox(height: 12),
@@ -80,6 +83,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               labelText: 'Alpha Vantage API Key',
               border: OutlineInputBorder(),
             ),
+            onEditingComplete: () =>
+                provider.updateStockApiKey(_stockKeyController.text),
             onSubmitted: provider.updateStockApiKey,
           ),
           const SizedBox(height: 12),
@@ -89,6 +94,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               labelText: '股票代码（逗号分隔）',
               border: OutlineInputBorder(),
             ),
+            onEditingComplete: () =>
+                provider.updateStockSymbols(_symbolsController.text.split(',')),
             onSubmitted: (value) =>
                 provider.updateStockSymbols(value.split(',')),
           ),
